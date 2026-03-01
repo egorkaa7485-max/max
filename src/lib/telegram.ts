@@ -139,9 +139,14 @@ export function initTelegramApp() {
   if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
     window.Telegram.WebApp.ready();
     window.Telegram.WebApp.expand();
+    return;
   }
   if (typeof window !== 'undefined' && window.MAX?.WebApp) {
-    window.MAX.WebApp.ready?.();
-    window.MAX.WebApp.expand?.();
+    try {
+      window.MAX.WebApp.ready?.();
+      window.MAX.WebApp.expand?.();
+    } catch {
+      // Some MAX containers partially expose WebApp API and may throw UnsupportedEvent.
+    }
   }
 }

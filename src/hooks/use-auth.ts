@@ -41,10 +41,21 @@ export function useAuth() {
         }),
       });
       if (!response.ok) {
-        throw new Error('Не удалось синхронизировать пользователя');
+        // Railway/static deployments may reject POST /api routes when backend is not attached.
+        // Keep app usable by returning local profile instead of failing auth query.
+        return {
+          id: 0,
+          telegramId: userData.telegramId,
+          username: userData.username,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          photoUrl: userData.photoUrl,
+          balance: 15000,
+        };
       }
       return (await response.json()) as UserResponse;
     },
     staleTime: Infinity,
+    retry: false,
   });
 }

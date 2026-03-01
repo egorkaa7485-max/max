@@ -1,8 +1,17 @@
 import express from 'express';
 import { Pool } from 'pg';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const app = express();
 app.use(express.json({ limit: '1mb' }));
+app.use('/api', (_req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  next();
+});
+app.options('/api/*', (_req, res) => res.sendStatus(204));
 
 const port = Number(process.env.PORT || 3001);
 const databaseUrl = process.env.DATABASE_URL;
@@ -167,6 +176,24 @@ app.post('/api/me', async (req, res) => {
   }
 });
 
+app.get('/api/me', async (req, res) => {
+  try {
+    const telegramId = String(req.query.telegramId || req.query.userId || '');
+    if (!telegramId) {
+      res.status(400).json({ message: 'telegramId is required' });
+      return;
+    }
+    const { rows } = await pool.query(`SELECT * FROM users WHERE max_user_id = $1 LIMIT 1`, [telegramId]);
+    if (!rows[0]) {
+      res.status(404).json({ message: 'User not found' });
+      return;
+    }
+    res.json(mapUserRow(rows[0]));
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch user', error: String(error) });
+  }
+});
+
 app.get('/api/users', async (_req, res) => {
   try {
     const { rows } = await pool.query(`SELECT * FROM users ORDER BY updated_at DESC`);
@@ -309,6 +336,19 @@ app.post('/api/max/pull-updates', async (_req, res) => {
   } catch (error) {
     res.status(500).json({ message: 'Failed to pull updates', error: String(error) });
   }
+});
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const distPath = path.resolve(__dirname, '../dist');
+
+app.use(express.static(distPath));
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    next();
+    return;
+  }
+  res.sendFile(path.join(distPath, 'index.html'));
 });
 
 initDb()
