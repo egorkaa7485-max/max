@@ -113,32 +113,33 @@ async function upsertUser(user) {
   return mapUserRow(result.rows[0]);
 }
 
+/**
+ * Нормализует пользователя из MAX Bot API.
+ * MAX User: { user_id, name, username, is_bot?, last_activity_time? }
+ * MAX UserWithPhoto: + avatar_url?, full_avatar_url?, description?
+ */
 function normalizeIncomingUser(rawUser) {
   if (!rawUser || typeof rawUser !== 'object') return null;
   const userId = rawUser.user_id ?? rawUser.id ?? rawUser.telegram_id;
   if (!userId) return null;
 
+  const name = typeof rawUser.name === 'string' ? rawUser.name : '';
+  const [firstName, ...rest] = name.trim().split(/\s+/);
+  const lastName = rest.length > 0 ? rest.join(' ') : undefined;
+
   return {
     telegramId: String(userId),
-    username: typeof rawUser.username === 'string' ? rawUser.username : undefined,
-    firstName:
-      typeof rawUser.first_name === 'string'
-        ? rawUser.first_name
-        : typeof rawUser.name === 'string'
-          ? rawUser.name.split(' ')[0]
-          : undefined,
-    lastName:
-      typeof rawUser.last_name === 'string'
-        ? rawUser.last_name
-        : typeof rawUser.name === 'string'
-          ? rawUser.name.split(' ').slice(1).join(' ') || undefined
-          : undefined,
+    username: rawUser.username != null && rawUser.username !== '' ? String(rawUser.username) : undefined,
+    firstName: rawUser.first_name ?? (firstName || undefined),
+    lastName: rawUser.last_name ?? lastName,
     photoUrl:
-      typeof rawUser.photo_url === 'string'
-        ? rawUser.photo_url
+      typeof rawUser.full_avatar_url === 'string'
+        ? rawUser.full_avatar_url
         : typeof rawUser.avatar_url === 'string'
           ? rawUser.avatar_url
-          : undefined,
+          : typeof rawUser.photo_url === 'string'
+            ? rawUser.photo_url
+            : undefined,
   };
 }
 
@@ -293,14 +294,23 @@ app.post('/api/max/webhook', async (req, res) => {
   try {
     const payload = req.body ?? {};
     const candidateUsers = [];
+    const seen = new Set();
 
+    // MAX может отправить один update в корне: { update_type, user, chat_id, payload }
     const rootUser = normalizeIncomingUser(payload.user);
-    if (rootUser) candidateUsers.push(rootUser);
+    if (rootUser && !seen.has(rootUser.telegramId)) {
+      candidateUsers.push(rootUser);
+      seen.add(rootUser.telegramId);
+    }
 
+    // Или массив updates
     const updates = getUpdatesList(payload);
     for (const update of updates) {
       const parsed = normalizeIncomingUser(update?.user);
-      if (parsed) candidateUsers.push(parsed);
+      if (parsed && !seen.has(parsed.telegramId)) {
+        candidateUsers.push(parsed);
+        seen.add(parsed.telegramId);
+      }
     }
 
     for (const user of candidateUsers) {
@@ -313,30 +323,71 @@ app.post('/api/max/webhook', async (req, res) => {
   }
 });
 
-app.post('/api/max/pull-updates', async (_req, res) => {
+app.post('/api/max/set-webhook', async (req, res) => {
+  try {
+    if (!maxBotToken) {
+      res.status(500).json({ message: 'MAX_BOT_TOKEN is not set' });
+      return;
+    }
+    const webhookUrl = req.body?.url ?? req.query?.url;
+    if (!webhookUrl || typeof webhookUrl !== 'string') {
+      res.status(400).json({ message: 'url is required' });
+      return;
+    }
+
+    const updateTypes = req.body?.update_types ?? ['bot_started', 'message_created', 'bot_added', 'user_added'];
+    const body = { url: webhookUrl, update_types: updateTypes };
+
+    const subResponse = await fetch('https://platform-api.max.ru/subscriptions', {
+      method: 'POST',
+      headers: { Authorization: maxBotToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    const data = await subResponse.json().catch(() => ({}));
+    if (!subResponse.ok) {
+      res.status(subResponse.status).json({ message: 'Failed to set webhook', detail: data });
+      return;
+    }
+    res.json({ ok: true, webhook: webhookUrl, data });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to set webhook', error: String(error) });
+  }
+});
+
+app.post('/api/max/pull-updates', async (req, res) => {
   try {
     if (!maxBotToken) {
       res.status(500).json({ message: 'MAX_BOT_TOKEN is not set' });
       return;
     }
 
-    const updatesResponse = await fetch('https://platform-api.max.ru/updates', {
+    const types = req.body?.types ?? 'bot_started,message_created,bot_added,user_added';
+    const limit = req.body?.limit ?? 100;
+    const url = new URL('https://platform-api.max.ru/updates');
+    url.searchParams.set('types', types);
+    url.searchParams.set('limit', String(limit));
+
+    const updatesResponse = await fetch(url.toString(), {
       headers: { Authorization: maxBotToken },
     });
     if (!updatesResponse.ok) {
-      res.status(updatesResponse.status).json({ message: 'MAX /updates request failed' });
+      const errText = await updatesResponse.text();
+      res.status(updatesResponse.status).json({ message: 'MAX /updates request failed', detail: errText });
       return;
     }
 
     const updatesJson = await updatesResponse.json();
     const updates = getUpdatesList(updatesJson);
+    const seen = new Set();
     let syncedUsers = 0;
 
     for (const update of updates) {
       const parsed = normalizeIncomingUser(update?.user);
-      if (parsed) {
+      if (parsed && !seen.has(parsed.telegramId)) {
         await upsertUser(parsed);
         syncedUsers += 1;
+        seen.add(parsed.telegramId);
       }
     }
 
