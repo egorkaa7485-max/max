@@ -19,6 +19,14 @@ declare global {
   }
 }
 
+export interface TelegramUserProfile {
+  telegramId: string;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  photoUrl?: string;
+}
+
 export function getTelegramUser() {
   if (typeof window !== 'undefined' && window.Telegram?.WebApp?.initDataUnsafe?.user) {
     const user = window.Telegram.WebApp.initDataUnsafe.user;
@@ -37,6 +45,15 @@ export function getTelegramUser() {
     lastName: 'Developer',
     photoUrl: undefined,
   };
+}
+
+export async function fetchTelegramProfileFromBot(telegramId: string): Promise<Partial<TelegramUserProfile>> {
+  const response = await fetch(`/api/telegram/profile?telegramId=${encodeURIComponent(telegramId)}`);
+  if (!response.ok) {
+    throw new Error('Не удалось получить профиль из Bot API');
+  }
+
+  return (await response.json()) as Partial<TelegramUserProfile>;
 }
 
 export function initTelegramApp() {
