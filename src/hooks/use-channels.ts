@@ -13,29 +13,32 @@ export interface ChannelResponse {
   isActive: boolean;
 }
 
-const MOCK_CHANNELS: ChannelResponse[] = [
-  { id: 1, ownerId: '123456789', link: '@technews', name: 'Tech News Daily', description: 'Daily tech updates', pricePerPost: 2500, subscribers: 12500, isActive: true },
-  { id: 2, ownerId: '999', link: '@cryptoinsights', name: 'Crypto Insights', description: 'Crypto market analysis', pricePerPost: 4000, subscribers: 8200, isActive: true },
-  { id: 3, ownerId: '888', link: '@designweekly', name: 'Design Weekly', description: 'UI/UX inspiration', pricePerPost: 1500, subscribers: 3100, isActive: true },
-];
-
-let channels = [...MOCK_CHANNELS];
-
 export function useChannels() {
   return useQuery<ChannelResponse[]>({
     queryKey: ['/api/channels'],
-    queryFn: async () => channels,
+    queryFn: async () => {
+      const response = await fetch('/api/channels');
+      if (!response.ok) {
+        throw new Error('Не удалось загрузить каналы');
+      }
+      return (await response.json()) as ChannelResponse[];
+    },
   });
 }
 
 export function useMyChannels() {
   const { data: user } = useAuth();
-  const { data: allChannels } = useChannels();
   const ownerId = user?.telegramId ?? '';
   return useQuery<ChannelResponse[]>({
     queryKey: ['/api/my-channels', ownerId],
-    queryFn: async () => allChannels?.filter((c) => c.ownerId === ownerId) ?? [],
-    enabled: !!ownerId && !!allChannels,
+    queryFn: async () => {
+      const response = await fetch(`/api/my-channels?ownerId=${encodeURIComponent(ownerId)}`);
+      if (!response.ok) {
+        throw new Error('Не удалось загрузить каналы пользователя');
+      }
+      return (await response.json()) as ChannelResponse[];
+    },
+    enabled: !!ownerId,
   });
 }
 
@@ -44,16 +47,23 @@ export function useCreateChannel() {
   return useMutation({
     mutationFn: async (data: Omit<ChannelResponse, 'id' | 'ownerId' | 'isActive'> & { isActive?: boolean }) => {
       const userData = getTelegramUser();
-      const id = Math.max(...channels.map((c) => c.id), 0) + 1;
-      const channel = {
-        ...data,
-        id,
-        ownerId: userData.telegramId,
-        link: data.link,
-        isActive: data.isActive ?? true,
-      };
-      channels = [...channels, channel];
-      return channel;
+      const response = await fetch('/api/channels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ownerId: userData.telegramId,
+          link: data.link,
+          name: data.name || data.link,
+          description: data.description,
+          pricePerPost: data.pricePerPost,
+          subscribers: data.subscribers,
+          isActive: data.isActive ?? true,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error('Не удалось создать канал');
+      }
+      return (await response.json()) as ChannelResponse;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/channels'] });

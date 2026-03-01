@@ -9,11 +9,22 @@ npm install
 npm run dev
 ```
 
-Перед запуском создайте `.env` в корне проекта и добавьте токен бота:
+Перед запуском создайте `.env` в корне проекта:
 
 ```bash
+DATABASE_URL=${{Postgres.DATABASE_URL}}
 MAX_BOT_TOKEN=ваш_токен_бота
 ```
+
+`npm run dev` запускает и клиент (`Vite`), и backend API (`Express + Postgres`).
+
+## MAX интеграция пользователя
+
+- Вебхук для событий MAX: `POST /api/max/webhook`
+- Ручная синхронизация через long polling: `POST /api/max/pull-updates`
+- Профиль пользователя для mini-app: `GET /api/max/profile?userId=<id>`
+
+Чтобы пользователь гарантированно парсился в профиль, отправляйте `bot_started/user` события на webhook или вызывайте pull-updates.
 
 ## Сборка
 

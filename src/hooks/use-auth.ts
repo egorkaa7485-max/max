@@ -15,29 +15,35 @@ export function useAuth() {
   return useQuery<UserResponse | null>({
     queryKey: ['/api/me'],
     queryFn: async () => {
-      const telegramUser = getTelegramUser();
-      let botProfile = {};
+      const clientUser = getTelegramUser();
+      let botProfile: Partial<UserResponse> = {};
 
       try {
-        botProfile = await fetchTelegramProfileFromBot(telegramUser.telegramId);
+        botProfile = await fetchTelegramProfileFromBot(clientUser.telegramId);
       } catch {
-        // Silent fallback to Telegram WebApp data when Bot API is unavailable.
+        // Silent fallback to in-app data when profile is not yet synced.
       }
 
       const userData = {
-        ...telegramUser,
+        ...clientUser,
         ...botProfile,
       };
 
-      return {
-        id: 1,
-        telegramId: userData.telegramId,
-        username: userData.username,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        photoUrl: userData.photoUrl,
-        balance: 15000,
-      };
+      const response = await fetch('/api/me', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegramId: userData.telegramId,
+          username: userData.username,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          photoUrl: userData.photoUrl,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error('Не удалось синхронизировать пользователя');
+      }
+      return (await response.json()) as UserResponse;
     },
     staleTime: Infinity,
   });

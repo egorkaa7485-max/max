@@ -2,7 +2,8 @@ import { motion } from 'framer-motion';
 import { GlassCard } from '@/components/glass-card';
 import { useChannels } from '@/hooks/use-channels';
 import { useAuth } from '@/hooks/use-auth';
-import { useEffect, useMemo, useState } from 'react';
+import { useUsers } from '@/hooks/use-users';
+import { useEffect, useState } from 'react';
 import { Hash, Shield, Users } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,7 @@ const ADMIN_SESSION_KEY = 'max_ads_admin_session';
 
 export default function Admin() {
   const { data: channels } = useChannels();
+  const { data: users } = useUsers();
   const { data: user } = useAuth();
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
@@ -23,15 +25,6 @@ export default function Admin() {
     if (typeof window === 'undefined') return;
     setIsAuthenticated(window.sessionStorage.getItem(ADMIN_SESSION_KEY) === 'ok');
   }, []);
-
-  const uniqueUserIds = useMemo(() => {
-    const ids = new Set<string>();
-    channels?.forEach((channel) => ids.add(channel.ownerId));
-    if (user?.telegramId) {
-      ids.add(user.telegramId);
-    }
-    return Array.from(ids);
-  }, [channels, user?.telegramId]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,7 +123,7 @@ export default function Admin() {
             <Users className="w-5 h-5" />
             <span className="text-sm">Пользователи</span>
           </div>
-          <p className="text-2xl font-bold">{uniqueUserIds.length}</p>
+          <p className="text-2xl font-bold">{users?.length ?? 0}</p>
         </GlassCard>
         <GlassCard className="p-4">
           <div className="flex items-center gap-2 text-muted-foreground mb-2">
@@ -144,13 +137,18 @@ export default function Admin() {
       <div>
         <h3 className="font-semibold text-lg mb-3">Все пользователи</h3>
         <div className="space-y-2">
-          {uniqueUserIds.length === 0 ? (
+          {!users || users.length === 0 ? (
             <GlassCard className="p-6 text-center text-muted-foreground text-sm">Пользователи не найдены</GlassCard>
           ) : (
-            uniqueUserIds.map((id) => (
-              <GlassCard key={id} className="p-4 flex items-center justify-between">
-                <p className="font-medium">ID: {id}</p>
-                <span className="text-xs text-muted-foreground">Пользователь</span>
+            users.map((u) => (
+              <GlassCard key={u.id} className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="font-medium">
+                    {u.username ? `@${u.username}` : [u.firstName, u.lastName].filter(Boolean).join(' ') || 'Без имени'}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">ID: {u.telegramId}</p>
+                </div>
+                <span className="text-xs text-muted-foreground">Баланс: {(u.balance / 100).toFixed(2)} ₽</span>
               </GlassCard>
             ))
           )}
