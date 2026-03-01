@@ -6,7 +6,7 @@ import { AnimatePresence } from 'framer-motion';
 import Exchange from '@/pages/Exchange';
 import Home from '@/pages/Home';
 import CalendarView from '@/pages/Calendar';
-import Support from '@/pages/Support';
+import Messages from '@/pages/Messages';
 import Admin from '@/pages/Admin';
 import NotFound from '@/pages/NotFound';
 
@@ -26,7 +26,7 @@ function Router() {
         <Route path="/" component={Exchange} />
         <Route path="/home" component={Home} />
         <Route path="/calendar" component={CalendarView} />
-        <Route path="/support" component={Support} />
+        <Route path="/messages" component={Messages} />
         <Route path="/admin" component={Admin} />
         <Route component={NotFound} />
       </Switch>

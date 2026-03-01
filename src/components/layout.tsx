@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { Store, Home, CalendarDays, MessageCircleQuestion } from 'lucide-react';
+import { Store, Home, CalendarDays, MessageSquare } from 'lucide-react';
 import { useEffect } from 'react';
 import { initTelegramApp } from '@/lib/telegram';
 
@@ -7,7 +7,7 @@ const navItems = [
   { href: '/', icon: Store, label: 'Биржа' },
   { href: '/home', icon: Home, label: 'Главная' },
   { href: '/calendar', icon: CalendarDays, label: 'Календарь' },
-  { href: '/support', icon: MessageCircleQuestion, label: 'Поддержка' },
+  { href: '/messages', icon: MessageSquare, label: 'Сообщения' },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {

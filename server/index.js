@@ -275,7 +275,15 @@ app.get('/api/max/profile', async (req, res) => {
       return;
     }
 
-    res.status(404).json({ message: 'User profile not found. Send webhook or pull updates first.' });
+    // Если пользователя ещё нет в БД, создаём пустую запись.
+    const created = await upsertUser({
+      telegramId: userId,
+      username: undefined,
+      firstName: undefined,
+      lastName: undefined,
+      photoUrl: undefined,
+    });
+    res.json(created);
   } catch (error) {
     res.status(500).json({ message: 'Failed to load MAX profile', error: String(error) });
   }
