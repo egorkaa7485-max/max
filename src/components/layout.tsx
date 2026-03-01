@@ -1,8 +1,7 @@
 import { Link, useLocation } from 'wouter';
-import { Store, Home, CalendarDays, MessageCircleQuestion, Shield } from 'lucide-react';
+import { Store, Home, CalendarDays, MessageCircleQuestion } from 'lucide-react';
 import { useEffect } from 'react';
 import { initTelegramApp } from '@/lib/telegram';
-import { useAuth } from '@/hooks/use-auth';
 
 const navItems = [
   { href: '/', icon: Store, label: 'Биржа' },
@@ -11,12 +10,8 @@ const navItems = [
   { href: '/support', icon: MessageCircleQuestion, label: 'Поддержка' },
 ];
 
-const ADMIN_IDS = ['123456789', '1'];
-
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  const { data: user } = useAuth();
-  const isAdmin = user && ADMIN_IDS.includes(user.telegramId);
 
   useEffect(() => {
     initTelegramApp();
@@ -53,16 +48,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
-          {isAdmin && (
-            <Link href="/admin" className="relative group flex flex-col items-center gap-1">
-              <div className={`p-2 rounded-2xl transition-all duration-300 ${
-                location === '/admin' ? 'bg-amber-500/30 text-amber-500' : 'text-muted-foreground hover:bg-white/50 dark:hover:bg-white/10'
-              }`}>
-                <Shield size={24} strokeWidth={location === '/admin' ? 2.5 : 2} />
-              </div>
-              <span className={`text-[10px] font-medium ${location === '/admin' ? 'text-amber-500' : 'text-muted-foreground'}`}>Админ</span>
-            </Link>
-          )}
         </nav>
       </div>
     </div>

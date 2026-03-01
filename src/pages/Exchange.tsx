@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { GlassCard } from '@/components/glass-card';
 import { useChannels } from '@/hooks/use-channels';
 import { useCreateBooking } from '@/hooks/use-bookings';
-import { Users, DollarSign, Search, ShieldCheck } from 'lucide-react';
+import { Users, Search, ShieldCheck } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -67,8 +67,7 @@ export default function Exchange() {
                       <h3 className="font-bold text-lg">{channel.name}</h3>
                       <p className="text-sm text-primary font-medium">{channel.link}</p>
                     </div>
-                    <div className="bg-primary/10 text-primary px-3 py-1 rounded-xl text-sm font-semibold flex items-center gap-1">
-                      <DollarSign className="w-4 h-4" />
+                    <div className="bg-primary/10 text-primary px-3 py-1 rounded-xl text-sm font-semibold">
                       {(channel.pricePerPost / 100).toFixed(2)} ₽
                     </div>
                   </div>
