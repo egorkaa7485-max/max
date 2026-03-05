@@ -5,7 +5,8 @@ if (!token) {
   throw new Error('MAX_BOT_TOKEN is not set');
 }
 
-const API_URL = process.env.INTERNAL_API_URL || 'https://max-production-ee6e.up.railway.app';
+// На Railway используем внутренний URL сервера или внешний
+const API_URL = process.env.INTERNAL_API_URL || process.env.API_URL || 'http://localhost:3001';
 
 const GREETING =
   'Добро пожаловать в MAX_ADS — вашу надежную биржу рекламы в мессенджере MAX! ' +
