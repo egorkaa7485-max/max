@@ -22,6 +22,14 @@ function splitName(name) {
   };
 }
 
+// Функция для получения текста из сообщения
+function getMessageText(ctx) {
+  if (!ctx.message?.body) return '';
+  const body = ctx.message.body;
+  // Пробуем разные поля для текста
+  return body.text || body.msg || '';
+}
+
 async function syncUser(ctx) {
   const u = ctx.user;
   if (!u) {
@@ -71,23 +79,16 @@ bot.command('start', async (ctx) => {
   await ctx.reply(GREETING(ctx.user?.name || ctx.user?.first_name));
 });
 
-// Обработчик текстовых сообщений "привет" и "старт"
-bot.hears('привет', async (ctx) => {
-  console.log('Heard привет');
-  await syncUser(ctx);
-  await ctx.reply(GREETING(ctx.user?.name || ctx.user?.first_name));
-});
-
-bot.hears('старт', async (ctx) => {
-  console.log('Heard старт');
-  await syncUser(ctx);
-  await ctx.reply(GREETING(ctx.user?.name || ctx.user?.first_name));
-});
-
-// Обработчик любых текстовых сообщений для отладки
+// Обработчик текстовых сообщений
 bot.on('message_created', async (ctx) => {
-  console.log('Message created:', ctx.message?.body);
+  const text = getMessageText(ctx).toLowerCase().trim();
+  console.log('Message received:', text);
+
+  if (text === 'привет' || text === 'старт') {
+    console.log('Matched привет/старт');
+    await syncUser(ctx);
+    await ctx.reply(GREETING(ctx.user?.name || ctx.user?.first_name));
+  }
 });
 
 bot.start();
-
