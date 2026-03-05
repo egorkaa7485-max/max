@@ -20,5 +20,6 @@ export function useUsers() {
       }
       return (await response.json()) as PlatformUserResponse[];
     },
+    refetchInterval: 3000, // Автоматически обновлять каждые 3 секунды
   });
 }

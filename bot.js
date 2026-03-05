@@ -55,5 +55,14 @@ bot.command('start', async (ctx) => {
   await ctx.reply(GREETING);
 });
 
+// Обработчик для команд "привет" и "старт" (без слеша)
+bot.on('message_created', async (ctx) => {
+  const message = ctx.message?.body?.toLowerCase().trim();
+  if (message === 'привет' || message === 'старт') {
+    await syncUser(ctx);
+    await ctx.reply(GREETING);
+  }
+});
+
 bot.start();
 
