@@ -8,9 +8,8 @@ if (!token) {
 // На Railway используем внутренний URL сервера или внешний
 const API_URL = process.env.INTERNAL_API_URL || process.env.API_URL || 'http://localhost:3001';
 
-const GREETING =
-  'Добро пожаловать в MAX_ADS — вашу надежную биржу рекламы в мессенджере MAX! ' +
-  'Наш бот создан для того, чтобы упростить процесс размещения и поиска рекламных объявлений.';
+const GREETING = (firstName) =>
+  `Привет${firstName ? ', ' + firstName : ''}! Добро пожаловать в MAX_ADS — вашу надежную биржу рекламы в мессенджере MAX! Наш бот создан для того, чтобы упростить процесс размещения и поиска рекламных объявлений.`;
 
 const bot = new Bot(token);
 
@@ -25,9 +24,21 @@ function splitName(name) {
 
 async function syncUser(ctx) {
   const u = ctx.user;
-  if (!u) return;
+  if (!u) {
+    console.log('No user in context', ctx);
+    return;
+  }
 
-  const { firstName, lastName } = splitName(u.name);
+  // Пробуем разные способы получить имя пользователя
+  const userName = u.name || u.first_name || u.firstName;
+  const { firstName, lastName } = splitName(userName);
+
+  console.log('Syncing user:', {
+    user_id: u.user_id,
+    username: u.username,
+    firstName,
+    lastName,
+  });
 
   try {
     await fetch(`${API_URL}/api/me`, {
@@ -38,31 +49,44 @@ async function syncUser(ctx) {
         username: u.username || undefined,
         firstName,
         lastName,
-        photoUrl: undefined,
+        photoUrl: u.avatar_url || u.photo_url || undefined,
       }),
     });
-  } catch {
-    // backend недоступен — просто пропускаем, чтобы бот не падал
+  } catch (err) {
+    console.error('Failed to sync user:', err);
   }
 }
 
+// Обработчик события запуска бота
 bot.on('bot_started', async (ctx) => {
+  console.log('Bot started event received');
   await syncUser(ctx);
-  await ctx.reply(GREETING);
+  await ctx.reply(GREETING(ctx.user?.name || ctx.user?.first_name));
 });
 
+// Обработчик команды /start
 bot.command('start', async (ctx) => {
+  console.log('Start command received');
   await syncUser(ctx);
-  await ctx.reply(GREETING);
+  await ctx.reply(GREETING(ctx.user?.name || ctx.user?.first_name));
 });
 
-// Обработчик для команд "привет" и "старт" (без слеша)
+// Обработчик текстовых сообщений "привет" и "старт"
+bot.hears('привет', async (ctx) => {
+  console.log('Heard привет');
+  await syncUser(ctx);
+  await ctx.reply(GREETING(ctx.user?.name || ctx.user?.first_name));
+});
+
+bot.hears('старт', async (ctx) => {
+  console.log('Heard старт');
+  await syncUser(ctx);
+  await ctx.reply(GREETING(ctx.user?.name || ctx.user?.first_name));
+});
+
+// Обработчик любых текстовых сообщений для отладки
 bot.on('message_created', async (ctx) => {
-  const message = ctx.message?.body?.toLowerCase().trim();
-  if (message === 'привет' || message === 'старт') {
-    await syncUser(ctx);
-    await ctx.reply(GREETING);
-  }
+  console.log('Message created:', ctx.message?.body);
 });
 
 bot.start();
